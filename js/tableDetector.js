@@ -7,10 +7,10 @@ var TableDetector = (function () {
     'use strict';
 
     function isExportableTable(table) {
-        // // Skip tables that are too small (likely not data tables)
-        // if (table.rows.length < 2) {
-        //     return false;
-        // }
+        // Skip tables that are too small (likely not data tables)
+        if (table.rows.length < 2) {
+            return false;
+        }
 
         // Check if table has a body (tbody)
         var tbody = table.querySelector('tbody');
@@ -29,6 +29,61 @@ var TableDetector = (function () {
             }
         }
         if (shouldSkip) {
+            return false;
+        }
+
+        // Filter out tables without proper headers (thead or header cells)
+        var thead = table.querySelector('thead');
+        if (!thead) {
+            // Check if first row contains mostly header cells (th)
+            var firstRow = table.rows[0];
+            if (firstRow) {
+                var thCount = firstRow.querySelectorAll('th').length;
+                var tdCount = firstRow.querySelectorAll('td').length;
+                var hasHeaderCells = thCount > 0;
+                var isLikelyHeaderRow = thCount > (tdCount / 2); // More than half are th elements
+                
+                if (!hasHeaderCells || !isLikelyHeaderRow) {
+                    return false;
+                }
+            }
+        }
+
+        // Filter out button tables (tables with mostly buttons, links, or interactive elements)
+        var totalCells = 0;
+        var interactiveCells = 0;
+        
+        for (var r = 0; r < table.rows.length && r < 5; r++) { // Check first 5 rows
+            var row = table.rows[r];
+            for (var c = 0; c < row.cells.length; c++) {
+                var cell = row.cells[c];
+                totalCells++;
+                
+                // Check if cell contains primarily interactive elements
+                var buttons = cell.querySelectorAll('button');
+                var links = cell.querySelectorAll('a');
+                var inputs = cell.querySelectorAll('input');
+                
+                var cellText = cell.textContent.trim();
+                var hasInteractiveElements = buttons.length > 0 || links.length > 0 || inputs.length > 0;
+                var hasMinimalText = cellText.length < 3;
+                
+                if (hasInteractiveElements && hasMinimalText) {
+                    interactiveCells++;
+                }
+            }
+        }
+        
+        // If more than 50% of checked cells are interactive with minimal text, skip this table
+        if (totalCells > 0 && (interactiveCells / totalCells) > 0.5) {
+            return false;
+        }
+
+        // Filter out very small tables (less than 2 columns and 2 data rows)
+        var columnCount = table.rows[0] ? table.rows[0].cells.length : 0;
+        var dataRowCount = tbody ? tbody.rows.length : 0;
+        
+        if (columnCount < 2 || dataRowCount < 2) {
             return false;
         }
 
