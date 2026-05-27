@@ -6,9 +6,92 @@
 var TableDetector = (function () {
     'use strict';
 
+    function isDateTable(table) {
+        if (!table) {
+            return false;
+        }
+
+        var dateClassPattern = /(daterangepicker|datepicker|drp-calendar|calendar-table|calendar|drp|datepick)/i;
+        var ancestor = table;
+
+        while (ancestor && ancestor.nodeType === 1) {
+            if (ancestor.className && dateClassPattern.test(ancestor.className)) {
+                return true;
+            }
+            ancestor = ancestor.parentElement;
+        }
+
+        if (hasDateTitleCells(table) || hasDayOfWeekHeader(table)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function hasDateTitleCells(table) {
+        var cells = table.querySelectorAll('td[data-title], th[data-title]');
+        if (!cells || cells.length === 0) {
+            return false;
+        }
+
+        var pattern = /^r\d+c\d+$/i;
+        var matchCount = 0;
+
+        for (var i = 0; i < cells.length; i++) {
+            if (pattern.test(cells[i].getAttribute('data-title') || '')) {
+                matchCount++;
+            }
+        }
+
+        return matchCount >= 7;
+    }
+
+    function hasDayOfWeekHeader(table) {
+        var dayNames = {
+            'mo': true, 'mon': true, 'monday': true,
+            'tu': true, 'tue': true, 'tues': true, 'tuesday': true,
+            'we': true, 'wed': true, 'wednesday': true,
+            'th': true, 'thu': true, 'thur': true, 'thurs': true, 'thursday': true,
+            'fr': true, 'fri': true, 'friday': true,
+            'sa': true, 'sat': true, 'saturday': true,
+            'su': true, 'sun': true, 'sunday': true,
+            'пн': true, 'вт': true, 'ср': true, 'чт': true, 'пт': true, 'сб': true, 'вс': true
+        };
+
+        var rows = table.querySelectorAll('thead tr');
+        if (!rows.length) {
+            rows = table.rows.length ? [table.rows[0]] : [];
+        }
+
+        for (var r = 0; r < rows.length; r++) {
+            var cells = rows[r].cells;
+            if (!cells || cells.length !== 7) {
+                continue;
+            }
+
+            var matches = 0;
+            for (var c = 0; c < cells.length; c++) {
+                var text = (cells[c].textContent || '').trim().toLowerCase();
+                if (text && dayNames[text]) {
+                    matches++;
+                }
+            }
+
+            if (matches >= 6) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function isExportableTable(table) {
         // Skip tables that are too small (likely not data tables)
         if (table.rows.length < 2) {
+            return false;
+        }
+
+        if (isDateTable(table)) {
             return false;
         }
 
